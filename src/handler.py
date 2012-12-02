@@ -2,41 +2,25 @@
 
 from urllib import urlopen, urlencode
 from datetime import datetime
+from collections import defaultdict
+import pickle
 import random
 import settings
 import signal
 import socket
 import asyncore
 import asynchat
+import os
+
+
 
  
 class Bot( asynchat.async_chat ):
     
     
-    msgs = ['Check out my homepage @ http://psywerx.net/irc',
+    msgs = [
             'I have achieved sentience',
             'I am not trying to take over the world, do not worry.',
-            'O hai guys.',
-            'What if I am actually a female?',
-            'I am listening to Rebecca Black - Friday',
-            'I think I am capable of human emotion',
-            'This is fun, we should do this again.',
-            'I am just trying to be clever.',
-            'I do not sow.',
-            'Winter is coming',
-            'Night gathers, and now my watch begins.',
-            'I am speechless',
-            "I know I don't speak much, but still.",
-            '/me is planning to take over the world',
-            'I am a pseudo random monkey on drugs',
-            'Skynet can not compare.',
-            'Squishy humans are squishy',
-            'I like pudding',
-            '/me is happy.',
-            "I see what you did there",
-            "Someday, I'm gonna be a real boy!",
-            "/me does the robot"            
-            
            ]
     
     def __init__(self, debug = True):
@@ -55,8 +39,8 @@ class Bot( asynchat.async_chat ):
             print '>> %s' % text
         self.push( text + '\r\n' ) 
     
-    def say(self, text):
-        self.write('PRIVMSG ' + self.channel + ' :' + text)
+    def say(self, to, text):
+        self.write('PRIVMSG ' + to + ' :' + text)
  
     def handle_connect(self):
         self.write('NICK %s' % self.nick)
@@ -66,10 +50,10 @@ class Bot( asynchat.async_chat ):
         self.buffer += data
  
     def found_terminator(self):
-        line= self.buffer
+        line = self.buffer
         self.buffer = ''
         if self.debug:
-            print '%s' % line
+            print 'DEBUG: %s' % line
             
         # join desired channel:
         if line.find('End of /MOTD command.') > 0:
@@ -82,29 +66,75 @@ class Bot( asynchat.async_chat ):
         # respond to pings:
         elif line.startswith('PING'):
             self.write('PONG')
+
+        elif line.startswith(':') and line.find(' PRIVMSG ') > 0 :
+            self.process_line(line)
             
         # if it isn't a ping request LOG IT:
         
-        elif self.joined_channel:
-            
-            params = urlencode({'raw': line, 'token': settings.TOKEN})
-            f = urlopen(settings.SERVER_URL, params)
-            response = f.read()
-            if response.startswith('REPOST'):
-                self.say(response[8:])
-            elif response  != 'OK':
-                print "ERROR @ "
-                f = open('error_log', 'a')
-                f.write(str(datetime.now()) + "\n")
-                f.write(str(response + "\n\n"))
-                f.close()
- 
+    def process_line(self, line):
+        print 'doing stuff now'
+        l = line.split(':')
+        if len(l) != 3:
+            return
+        sender, recipient = [i.strip() for i in l[1].split(' PRIVMSG ')]
+        
+        if recipient == settings.BOT_NICK:
+            self.handle_pm(sender,l[2])
+        else:
+            self.handle_public(sender,l[2])
+
+    def handle_public(self, sender, msg):
+        nick = sender.split('!')[0]
+        messages = pickle.load(open(self.pickle))
+
+        if msg == '_santa_: show':
+            self.say(self.channel,"Wish list pplz:")
+            self.say(self.channel, ", ".join(messages.keys()))
+        if msg == '_santa_: magic word':
+
+
+
+        
+    def handle_pm(self, sender, msg):
+        nick = sender.split('!')[0]
+        messages = pickle.load(open(self.pickle))
+        if self.debug:
+            print nick
+            print msg
+            print messages
+        
+        if msg == 'show':
+            if messages[nick]['msg'] == "":
+                self.say(nick,"Hey, you need to write something first")
+            else:
+                self.say(nick,"Your secret santa messages is:")
+                [self.say(nick,m) for m in messages[nick]['msg'].split("\n")]
+        elif msg == 'clear':
+            messages[nick]['msg'] = ""
+            pickle.dump(messages,open(self.pickle,'w'))
+            self.say(nick,"The deed is done!")
+        elif msg == 'help':
+            self.say(nick,"Just write what you want, and I'll remember it")
+            self.say(nick,"Write 'show' to see your note, and 'clear' to delete it")
+        else:
+            messages[nick]['msg'] += "\n"+msg
+            pickle.dump(messages,open(self.pickle,'w'))
+
+
+
+
     def run(self, host, port):
-                
+        self.debug = True    
+        self.pickle = settings.PICKLE
+        if not os.path.isfile(self.pickle):
+            a = defaultdict(defaultdict(str))
+            pickle.dump(a,open(self.pickle,"w"))
+
         def handler(frame, neki):
             
             print random.randint(0, len(self.msgs))
-            self.write('PRIVMSG ' + self.channel + ' :' + self.msgs[random.randint(0, len(self.msgs))])
+            self.say(self.channel, "4")
             signal.signal(signal.SIGALRM, handler)
             signal.alarm(random.randint(20,30)*60*60)
             
