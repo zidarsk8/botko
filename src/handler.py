@@ -3,6 +3,7 @@
 from urllib import urlopen, urlencode
 from datetime import datetime
 from collections import defaultdict
+from random import shuffle
 import pickle
 import random
 import settings
@@ -87,11 +88,28 @@ class Bot( asynchat.async_chat ):
     def handle_public(self, sender, msg):
         nick = sender.split('!')[0]
         messages = pickle.load(open(self.pickle))
+        if self.debug:
+            print 'public'
+            print nick
+            print msg
 
-        if msg == '_santa_: show':
+        if msg == '_santa_ show':
+            print 'santa show now !!',self.channel
             self.say(self.channel,"Wish list pplz:")
             self.say(self.channel, ", ".join(messages.keys()))
-        if msg == '_santa_: magic word':
+        if msg == '_santa_ magic word':
+            an = messages.keys()
+            sn = messages.keys()
+            while sum([an[i]==sn[i] for i in range(len(an))]) > 0 and len(an) > 1:
+                shuffle(sn)
+            for i in range(len(an)):
+                messages[an[i]]['to'] = sn[i]
+                self.say(an[i],self.getDeliveryMessage(sn[i]))
+                [self.say(an[i],m) for m in messages[sn[i]]['msg'].split("\n")]
+            pickle.dump(messages,open(self.pickle,'w'))
+
+    def getDeliveryMessage(self, towhom):
+        return "Your task is to make %s happy! See hint below:" % towhom
 
 
 
@@ -103,6 +121,8 @@ class Bot( asynchat.async_chat ):
             print nick
             print msg
             print messages
+        if nick not in messages:
+            messages[nick] = {'msg':'','to':''}
         
         if msg == 'show':
             if messages[nick]['msg'] == "":
@@ -128,7 +148,7 @@ class Bot( asynchat.async_chat ):
         self.debug = True    
         self.pickle = settings.PICKLE
         if not os.path.isfile(self.pickle):
-            a = defaultdict(defaultdict(str))
+            a = defaultdict(dict)
             pickle.dump(a,open(self.pickle,"w"))
 
         def handler(frame, neki):
@@ -148,4 +168,4 @@ class Bot( asynchat.async_chat ):
         signal.alarm(20)
 
         asyncore.loop()
- 
+
