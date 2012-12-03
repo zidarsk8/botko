@@ -3,7 +3,7 @@
 from urllib import urlopen, urlencode
 from datetime import datetime
 from collections import defaultdict
-from random import shuffle
+import random
 import pickle
 import random
 import settings
@@ -17,12 +17,6 @@ import os
 
  
 class Bot( asynchat.async_chat ):
-    
-    
-    msgs = [
-            'I have achieved sentience',
-            'I am not trying to take over the world, do not worry.',
-           ]
     
     def __init__(self, debug = True):
         asynchat.async_chat.__init__( self )
@@ -76,14 +70,15 @@ class Bot( asynchat.async_chat ):
     def process_line(self, line):
         print 'doing stuff now'
         l = line.split(':')
-        if len(l) != 3:
+        if len(l) < 3:
             return
+        msg = ":".join(l[2:])
         sender, recipient = [i.strip() for i in l[1].split(' PRIVMSG ')]
         
         if recipient == settings.BOT_NICK:
-            self.handle_pm(sender,l[2])
+            self.handle_pm(sender,msg)
         else:
-            self.handle_public(sender,l[2])
+            self.handle_public(sender,msg)
 
     def handle_public(self, sender, msg):
         nick = sender.split('!')[0]
@@ -98,21 +93,41 @@ class Bot( asynchat.async_chat ):
             self.say(self.channel,"Wish list pplz:")
             self.say(self.channel, ", ".join(messages.keys()))
         if msg == '_santa_ magic word':
-            an = messages.keys()
-            sn = messages.keys()
+            #set new ids:
+            for i,j in messages.items():
+                messages[i]['id'] = self.getNewId(messages)
+            an = [a['id'] for a in messages.values()]
+            sn = list(an)
+
+#TODO use
+
             while sum([an[i]==sn[i] for i in range(len(an))]) > 0 and len(an) > 1:
-                shuffle(sn)
-            for i in range(len(an)):
-                messages[an[i]]['to'] = sn[i]
-                self.say(an[i],self.getDeliveryMessage(sn[i]))
+                random.shuffle(sn)
+            for ni, val in messages.items():
+                messages[ni]['to'] = sn[i]
+                self.say(i,self.getDeliveryMessage(sn[i]))
                 [self.say(an[i],m) for m in messages[sn[i]]['msg'].split("\n")]
             pickle.dump(messages,open(self.pickle,'w'))
+        if msg == '_santa_ help':
+            self.writeHelp()
+        if msg == '_santa_ mapping':
+            self.say(self.channel,"Current mapping:" % (j['id'], j['to']) )
+            for i,j in messages.items():
+                self.say(self.channel,"#%4d -> #%4d" % (j['id'], j['to']) )
 
     def getDeliveryMessage(self, towhom):
         return "Your task is to make %s happy! See hint below:" % towhom
 
 
 
+    def getNewId(self,messages):
+        used = set([a['id'] for a in messages.values() if 'id' in a])
+        d = int(random.random()*1000)
+        m = 1000
+        while d in used:
+            d = int(random.random()*m)
+            m += 1
+        return d
         
     def handle_pm(self, sender, msg):
         nick = sender.split('!')[0]
@@ -122,7 +137,7 @@ class Bot( asynchat.async_chat ):
             print msg
             print messages
         if nick not in messages:
-            messages[nick] = {'msg':'','to':''}
+            messages[nick] = {'id':self.getNewId(messages),'msg':'','to':''}
         
         if msg == 'show':
             if messages[nick]['msg'] == "":
@@ -135,12 +150,29 @@ class Bot( asynchat.async_chat ):
             pickle.dump(messages,open(self.pickle,'w'))
             self.say(nick,"The deed is done!")
         elif msg == 'help':
-            self.say(nick,"Just write what you want, and I'll remember it")
-            self.say(nick,"Write 'show' to see your note, and 'clear' to delete it")
+            self.writeHelp()
+        elif msg == 'to whom':
+            self.say(nick,"you will deliver your package to subject #%d" % messages[nick]['to'])
         else:
             messages[nick]['msg'] += "\n"+msg
             pickle.dump(messages,open(self.pickle,'w'))
 
+
+    def writeHelp(self):
+        h = '''
+            Global commands in the form of "_santa_ <command>":
+            .    help - you're looking at it, why would you need to know what this command does!
+            .    mapping show current id mapping
+            .    show - lists all users participating in this secret santa thingy
+            .    magic word - gives users an id and does the mappig
+            . 
+            PM commands:
+            .    show - shows you your current secret santa message
+            .    clear - clears your current message
+            .    help - shows this text
+            .    to whom - shows you an id if your recipient
+            .    <anything else> - will get appended to your secret santa message
+        '''
 
 
 
