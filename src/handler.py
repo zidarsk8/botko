@@ -12,7 +12,7 @@ import socket
 import asyncore
 import asynchat
 import os
-
+import time
 
 
  
@@ -35,6 +35,7 @@ class Bot( asynchat.async_chat ):
         self.push( text + '\r\n' ) 
     
     def say(self, to, text):
+        time.sleep(5)
         self.write('PRIVMSG ' + to + ' :' + text)
  
     def handle_connect(self):
@@ -145,7 +146,7 @@ class Bot( asynchat.async_chat ):
             print messages
 
         if nick not in messages:
-            messages[nick] = {'id':0,'msg':'','to':''}
+            messages[nick] = {'id':0,'msg':'','to':0}
         
         if msg == 'show':
             if messages[nick]['msg'] == "":
