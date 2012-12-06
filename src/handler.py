@@ -88,39 +88,47 @@ class Bot( asynchat.async_chat ):
             print nick
             print msg
 
-        if msg == '_santa_ show':
+        if msg.replace(':','') == '_santa_ show':
             print 'santa show now !!',self.channel
-            self.say(self.channel,"Wish list pplz:")
+            self.say(self.channel,"People who want stuff:")
             self.say(self.channel, ", ".join(messages.keys()))
-        if msg == '_santa_ magic word':
-            #set new ids:
-            for i,j in messages.items():
-                messages[i]['id'] = self.getNewId(messages)
-            an = [a['id'] for a in messages.values()]
-            sn = list(an)
-
-#TODO use
-
-            while sum([an[i]==sn[i] for i in range(len(an))]) > 0 and len(an) > 1:
-                random.shuffle(sn)
-            for ni, val in messages.items():
-                messages[ni]['to'] = sn[i]
-                self.say(i,self.getDeliveryMessage(sn[i]))
-                [self.say(an[i],m) for m in messages[sn[i]]['msg'].split("\n")]
+        if msg.replace(':','') == '_santa_ magic word':
+            self.calcMapping(messages)
             pickle.dump(messages,open(self.pickle,'w'))
-        if msg == '_santa_ help':
+        if msg.replace(':','') == '_santa_ help':
             self.writeHelp()
-        if msg == '_santa_ mapping':
-            self.say(self.channel,"Current mapping:" % (j['id'], j['to']) )
+        if msg.replace(':','') == '_santa_ mapping':
+            self.say(self.channel,"Previos mapping was:" )
             for i,j in messages.items():
                 self.say(self.channel,"#%4d -> #%4d" % (j['id'], j['to']) )
+            self.calcMapping(messages)
+            pickle.dump(messages,open(self.pickle,'w'))
 
-    def getDeliveryMessage(self, towhom):
-        return "Your task is to make %s happy! See hint below:" % towhom
+    def calcMapping(self, messages):
+        for i,j in messages.items():
+            messages[i]['id'] = self.getNewId(messages)
+        an = [a['id'] for a in messages.values()]
+        sn = list(an)
 
+        while sum([an[i]==sn[i] for i in range(len(an))]) > 0 and len(an) > 1:
+            random.shuffle(sn)
+        idmap = {an[i]:sn[i] for i in range(len(an))}
+        for ni, val in messages.items():
+            messages[ni]['to'] = idmap[messages[ni]['id']]
+        
+        pickle.dump(messages,open(self.pickle,'w'))
+        print messages
 
+        [self.sendMessageTo(messages, nick) for nick in messages.keys()]
+       
+    def sendMessageTo(self, messages, nick ):
+        toid = messages[nick]['to']
+        self.say(nick, "Your task is to make %s happy! See hint below:" % toid)
+        tonick = {j['id']:i for i,j in messages.items()}[toid]
 
-    def getNewId(self,messages):
+        [self.say(nick,'> '+m) for m in messages[tonick]['msg'].split("\n")]
+
+    def getNewId(self, messages):
         used = set([a['id'] for a in messages.values() if 'id' in a])
         d = int(random.random()*1000)
         m = 1000
@@ -133,11 +141,11 @@ class Bot( asynchat.async_chat ):
         nick = sender.split('!')[0]
         messages = pickle.load(open(self.pickle))
         if self.debug:
-            print nick
-            print msg
+            print "DEBUG PM - ", msg
             print messages
+
         if nick not in messages:
-            messages[nick] = {'id':self.getNewId(messages),'msg':'','to':''}
+            messages[nick] = {'id':0,'msg':'','to':''}
         
         if msg == 'show':
             if messages[nick]['msg'] == "":
@@ -145,6 +153,7 @@ class Bot( asynchat.async_chat ):
             else:
                 self.say(nick,"Your secret santa messages is:")
                 [self.say(nick,m) for m in messages[nick]['msg'].split("\n")]
+            
         elif msg == 'clear':
             messages[nick]['msg'] = ""
             pickle.dump(messages,open(self.pickle,'w'))
@@ -152,7 +161,8 @@ class Bot( asynchat.async_chat ):
         elif msg == 'help':
             self.writeHelp()
         elif msg == 'to whom':
-            self.say(nick,"you will deliver your package to subject #%d" % messages[nick]['to'])
+            self.say(nick,"you will deliver your package to subject #%d" % \
+                    messages[nick]['to'])
         else:
             messages[nick]['msg'] += "\n"+msg
             pickle.dump(messages,open(self.pickle,'w'))
@@ -162,7 +172,7 @@ class Bot( asynchat.async_chat ):
         h = '''
             Global commands in the form of "_santa_ <command>":
             .    help - you're looking at it, why would you need to know what this command does!
-            .    mapping show current id mapping
+            .    mapping - show current id mapping
             .    show - lists all users participating in this secret santa thingy
             .    magic word - gives users an id and does the mappig
             . 
@@ -173,6 +183,8 @@ class Bot( asynchat.async_chat ):
             .    to whom - shows you an id if your recipient
             .    <anything else> - will get appended to your secret santa message
         '''
+        [self.say(self.channel,m.strip()) for m in h.split("\n")]
+
 
 
 
