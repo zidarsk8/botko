@@ -35,7 +35,11 @@ class Bot( asynchat.async_chat ):
         self.push( text + '\r\n' ) 
     
     def say(self, to, text):
-        time.sleep(5)
+        try:
+            time.sleep(1)
+        except IOError:
+            print "sleep not working"
+
         self.write('PRIVMSG ' + to + ' :' + text)
  
     def handle_connect(self):
