@@ -1,11 +1,6 @@
 import re
 
-from plugins.uptime import Uptime
-from plugins.nsfw_image_detector import NSFWImageDetectorPlugin
-from plugins.read_links import ReadLinks
-from plugins.psywerx_history import PsywerxHistory
-from plugins.psywerx_groups import PsywerxGroups
-from plugins.psywerx_karma import PsywerxKarma
+from plugins import santa
 
 
 class BotLogic(object):
@@ -18,12 +13,7 @@ class BotLogic(object):
         self.init_actions()
 
         self.plugins = [
-            PsywerxHistory(bot=bot),
-            PsywerxKarma(bot=bot),
-            PsywerxGroups(bot=bot),
-            NSFWImageDetectorPlugin(bot=bot),
-            ReadLinks(bot=bot),
-            Uptime(bot=bot),
+            santa.Santa(bot=bot),
         ]
 
     def _get_action_code(self, line):
