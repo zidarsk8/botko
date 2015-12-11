@@ -87,7 +87,8 @@ class Bot(asynchat.async_chat):
         asyncore.loop()
 
     def part_user(self, channel, nick, msg):
-        del self.known_users[channel][nick.lower()]
+        if nick.lower() in self.known_users[channel]:
+            del self.known_users[channel][nick.lower()]
 
     def remove_user(self, channel, nick, msg):
         for channel in self.known_users.keys():
