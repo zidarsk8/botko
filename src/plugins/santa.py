@@ -103,6 +103,7 @@ class Santa(base.BotPlugin):
         self.record_messae = False
         if nick in self.store["wishes"]:
             del self.store["wishes"][nick]
+            del self.store["nicks"][nick]
             self._save_store()
         self.bot.say("Your secret santa wish has been removed", nick)
 
