@@ -215,10 +215,10 @@ class Santa(base.BotPlugin):
         self.handle_tokens(msg, ('show_mappings',), self.show_mappings,
                            nick, channel, msg, line)
 
-        if self.record_messae:
+        if self.record_messae and "PRIVMSG" in line:
             self.append_wish(nick, msg)
 
-        if self.debug:
+        if self.debug and "debug" in msg:
             print "#"*80
             import json
             print json.dumps(self.store, indent=4, sort_keys=True)
