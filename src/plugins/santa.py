@@ -8,6 +8,8 @@ from collections import defaultdict
 
 class Santa(base.BotPlugin):
 
+    admins = ("smotko", "zidar")
+
     ponies = set([
         "Rainbow Dash",
         "Pinkie Pie",
@@ -68,8 +70,10 @@ class Santa(base.BotPlugin):
             }
             self._save_store()
 
-    def _save_store(self):
-        self._save_object(self.store)
+    def _save_store(self, force=False):
+        if not self.store.get("freeze", False) or force:
+            self._save_object(self.store)
+
 
     def _save_object(self, obj):
         with open(self.pickle_file, "w") as output:
@@ -105,6 +109,10 @@ class Santa(base.BotPlugin):
             "@to_whom - Show the fake nick of the person you will gift,",
             "    and their secret santa message. The debug version will also",
             "    display the real nick",
+            "@freeze - Freeze the current wishes and mappings.",
+            "    Can be done only by admin users.",
+            "@unfreeze - Unfreeze the current wishes and mappings.",
+            "    Can be done only by admin users.",
         ]
         self._say_lines(help_message, channel)
 
@@ -168,6 +176,29 @@ class Santa(base.BotPlugin):
             self.bot.say("from: {} - to: {}".format(p_from, p_to), channel)
             time.sleep(1)
 
+    def freeze(self, tokens, nick, channel, msg, line):
+        if nick not in self.admins:
+            self.bot.say("I can't let you do that dave", channel)
+            return
+        if self.store.get("freeze", False):
+            self.bot.say("Already frozen, nothing to do here.", channel)
+        else:
+            self.store["freeze"] = True
+            self._save_store(force=True)
+            self.bot.say("The hell has frozen.", channel)
+
+
+    def unfreeze(self, tokens, nick, channel, msg, line):
+        if nick not in self.admins:
+            self.bot.say("I can't let you do that dave", channel)
+            return
+        if self.store.get("freeze", False):
+            self.store["freeze"] = False
+            self._save_store(force=True)
+            self.bot.say("Global warming did its thing.", channel)
+        else:
+            self.bot.say("Nothing was frozen to begin with.", channel)
+
     def to_whom(self, tokens, nick, channel, msg, line):
         self.record_messae = False
         if not self.store["mappings"]:
@@ -207,6 +238,12 @@ class Santa(base.BotPlugin):
                            nick, channel, msg, line)
 
         self.handle_tokens(msg, ('shuffle',), self.shuffle_users,
+                           nick, channel, msg, line)
+
+        self.handle_tokens(msg, ('freeze',), self.freeze,
+                           nick, channel, msg, line)
+
+        self.handle_tokens(msg, ('unfreeze',), self.unfreeze,
                            nick, channel, msg, line)
 
         self.handle_tokens(msg, ('to_whom',), self.to_whom,
