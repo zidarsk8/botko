@@ -120,7 +120,6 @@ class Santa(base.BotPlugin):
         self.record_messae = False
         if nick in self.store["wishes"]:
             del self.store["wishes"][nick]
-            del self.store["nicks"][nick]
             self._save_store()
         self.bot.say("Your secret santa wish has been removed", nick)
 
@@ -143,8 +142,9 @@ class Santa(base.BotPlugin):
 
         random.shuffle(nicks)
         self.store["nicks"] = {}
+        self.store["mappings"] = {}
         for i, nick in enumerate(nicks):
-            self.set_pony_name(nick)
+            self.get_pony_name(nick)
             self.store["mappings"][nick] = nicks[(i + 1) % len(nicks)]
 
         self._save_store()
@@ -163,8 +163,8 @@ class Santa(base.BotPlugin):
         self.bot.say("These are the actual nicks that will be used", channel)
         self.bot.say("The follwing gifts will be given (fake nicks):", channel)
         for giver, reciever in sorted(self.store["mappings"].items()):
-            p_from = "{} ({})".format(self.store["nicks"][giver], giver)
-            p_to = "{} ({})".format(self.store["nicks"][reciever], reciever)
+            p_from = "{} ({})".format(self.get_pony_name(giver), giver)
+            p_to = "{} ({})".format(self.get_pony_name(reciever), reciever)
             self.bot.say("from: {} - to: {}".format(p_from, p_to), channel)
             time.sleep(1)
 
@@ -181,9 +181,8 @@ class Santa(base.BotPlugin):
             return
 
         to = self.store["mappings"][nick]
-        pony_name = self.store["nicks"][to]
         if self.debug:
-            pony_name = "{} ({})".format(pony_name, to)
+            pony_name = "{} ({})".format(self.get_pony_name(to), to)
 
         self.bot.say("You will make {} really happy.".format(pony_name), nick)
         self.bot.say("Their message is:", nick)
@@ -219,12 +218,19 @@ class Santa(base.BotPlugin):
         if self.record_messae:
             self.append_wish(nick, msg)
 
-    def set_pony_name(self, nick):
-        if nick in self.store["nicks"]:
-            return
-        taken_nicks = set(self.store["nicks"].values())
-        possible_nicks = self.ponies.difference(taken_nicks)
-        self.store["nicks"][nick] = random.sample(possible_nicks, 1)[0]
+        if self.debug:
+            print "#"*80
+            import json
+            print json.dumps(self.store, indent=4, sort_keys=True)
+            print "#"*80
+
+    def get_pony_name(self, nick):
+        if nick not in self.store["nicks"]:
+            taken_nicks = set(self.store["nicks"].values())
+            possible_nicks = self.ponies.difference(taken_nicks)
+            self.store["nicks"][nick] = random.sample(possible_nicks, 1)[0]
+            self._save_store()
+        return self.store["nicks"][nick]
 
     def append_wish(self, nick, msg):
         self.store["wishes"][nick].append(msg)
