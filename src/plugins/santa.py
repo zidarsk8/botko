@@ -10,10 +10,18 @@ class Santa(base.BotPlugin):
 
     ponies = set([
         "Rainbow Dash",
+        "Pinkie Pie",
+        "Misty Fly",
+        "Lyra Heartstrings",
+        "Bon Bon",
+        "Vinyl Scratch",
+        "Octavia Melody",
         "Rarity",
+        "Fluttershy",
         "Twilight Sparkle",
         "Apple Bloom",
         "Scootaloo",
+        "Applejack",
         "Sweetie Belle",
         "Cheerilee",
         "Junebug",
@@ -42,6 +50,9 @@ class Santa(base.BotPlugin):
         "Limestone Pie",
         "Maud Pie",
         "Dr. Hooves",
+        "Frederick Horseshoepin",
+        "Fuzzy Slippers",
+        "Harry Trotter",
     ])
 
     def __init__(self, bot):
@@ -137,6 +148,7 @@ class Santa(base.BotPlugin):
             self.store["mappings"][nick] = nicks[(i + 1) % len(nicks)]
 
         self._save_store()
+        self.bot.say("{} wishes were assigned".format(len(nicks)), channel)
 
     def show_mappings(self, tokens, nick, channel, msg, line):
         self.record_messae = False
@@ -148,29 +160,24 @@ class Santa(base.BotPlugin):
             self.bot.say("Wishes have not yet been assigned.", channel)
             return
 
-        self.bot.say("The follwing gifts will be given (nicks):", channel)
-        for giver, reciever in sorted(self.store["mappings"].items()):
-            self.bot.say("from: {} - to: {}".format(giver, reciever), channel)
-            time.sleep(1)
-
         self.bot.say("These are the actual nicks that will be used", channel)
         self.bot.say("The follwing gifts will be given (fake nicks):", channel)
         for giver, reciever in sorted(self.store["mappings"].items()):
-            p_from = self.store["nicks"][giver]
-            p_to = self.store["nicks"][reciever]
+            p_from = "{} ({})".format(self.store["nicks"][giver], giver)
+            p_to = "{} ({})".format(self.store["nicks"][reciever], reciever)
             self.bot.say("from: {} - to: {}".format(p_from, p_to), channel)
             time.sleep(1)
 
     def to_whom(self, tokens, nick, channel, msg, line):
         self.record_messae = False
         if not self.store["mappings"]:
-            self.bot.say("Wishes have not yet been assigned.", channel)
+            self.bot.say("Wishes have not yet been assigned.", nick)
             return
 
         if nick not in self.store["mappings"]:
             self.bot.say("You do not have an assigned wish, "
                          "If you are participating, then this is "
-                         "a bad error.", channel)
+                         "a bad error.", nick)
             return
 
         to = self.store["mappings"][nick]
@@ -178,9 +185,9 @@ class Santa(base.BotPlugin):
         if self.debug:
             pony_name = "{} ({})".format(pony_name, to)
 
-        self.bot.say("You will make {} really happy.".format(pony_name))
-        self.bot.say("Their message is:")
-        self._say_lines(self.store["wishes"][to])
+        self.bot.say("You will make {} really happy.".format(pony_name), nick)
+        self.bot.say("Their message is:", nick)
+        self._say_lines(self.store["wishes"][to], nick)
 
     def handle_message(self, channel, nick, msg, line=None):
         self.record_messae = False
@@ -206,7 +213,7 @@ class Santa(base.BotPlugin):
         self.handle_tokens(msg, ('to_whom',), self.to_whom,
                            nick, channel, msg, line)
 
-        self.handle_tokens(msg, ('show_mappings',), self.list_users,
+        self.handle_tokens(msg, ('show_mappings',), self.show_mappings,
                            nick, channel, msg, line)
 
         if self.record_messae:
