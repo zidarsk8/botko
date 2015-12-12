@@ -4,8 +4,6 @@ import pickle
 import random
 import time
 from collections import defaultdict
-from datetime import timedelta
-from os import popen
 
 
 class Santa(base.BotPlugin):
@@ -43,16 +41,19 @@ class Santa(base.BotPlugin):
         "Marble Pie",
         "Limestone Pie",
         "Maud Pie",
+        "Dr. Hooves",
     ])
 
     def __init__(self, bot):
         super(Santa, self).__init__(bot)
+        self.debug = True
         self.pickle_file = "secret_santa_stash.pkl"
         self.store = self._load_object()
         if self.store is None:
             self.store = {
                 "wishes": defaultdict(list),
                 "nicks": {},
+                "mappings": {},
             }
             self._save_store()
 
@@ -71,7 +72,7 @@ class Santa(base.BotPlugin):
 
     def _say_lines(self, lines, channel):
         for line in lines:
-            time.sleep(0.5)
+            time.sleep(1)
             self.bot.say(line, channel)
 
     def say_help(self, tokens, nick, channel, msg, line):
@@ -87,9 +88,14 @@ class Santa(base.BotPlugin):
             "@show - Show your current wish.",
             "@delete - Delete your current wish.",
             "@list - List of secret santa users. ",
+            "@shuffle - Assign one gift to each santa. ",
+            "@show_mappings - Show who would give a gift to whom. This will",
+            "    be hidden when the real santa starts.",
+            "@to_whom - Show the fake nick of the person you will gift,",
+            "    and their secret santa message. The debug version will also",
+            "    display the real nick",
         ]
         self._say_lines(help_message, channel)
-
 
     def show_wish(self, tokens, nick, channel, msg, line):
         self.record_messae = False
@@ -116,6 +122,65 @@ class Santa(base.BotPlugin):
         else:
             self.bot.say("There aren't any secret santas yet.", channel)
 
+    def shuffle_users(self, tokens, nick, channel, msg, line):
+        self.record_messae = False
+        if not self.store["wishes"]:
+            self.bot.say("Can't shuffle 0 wishes", channel)
+            return
+
+        nicks = self.store["wishes"].keys()
+
+        random.shuffle(nicks)
+        self.store["nicks"] = {}
+        for i, nick in enumerate(nicks):
+            self.set_pony_name(nick)
+            self.store["mappings"][nick] = nicks[(i + 1) % len(nicks)]
+
+        self._save_store()
+
+    def show_mappings(self, tokens, nick, channel, msg, line):
+        self.record_messae = False
+        if not self.debug:
+            self.bot.say("This only works in debug mode, sorry.", channel)
+            return
+
+        if not self.store["mappings"]:
+            self.bot.say("Wishes have not yet been assigned.", channel)
+            return
+
+        self.bot.say("The follwing gifts will be given (nicks):", channel)
+        for giver, reciever in sorted(self.store["mappings"].items()):
+            self.bot.say("from: {} - to: {}".format(giver, reciever), channel)
+            time.sleep(1)
+
+        self.bot.say("These are the actual nicks that will be used", channel)
+        self.bot.say("The follwing gifts will be given (fake nicks):", channel)
+        for giver, reciever in sorted(self.store["mappings"].items()):
+            p_from = self.store["nicks"][giver]
+            p_to = self.store["nicks"][reciever]
+            self.bot.say("from: {} - to: {}".format(p_from, p_to), channel)
+            time.sleep(1)
+
+    def to_whom(self, tokens, nick, channel, msg, line):
+        self.record_messae = False
+        if not self.store["mappings"]:
+            self.bot.say("Wishes have not yet been assigned.", channel)
+            return
+
+        if nick not in self.store["mappings"]:
+            self.bot.say("You do not have an assigned wish, "
+                         "If you are participating, then this is "
+                         "a bad error.", channel)
+            return
+
+        to = self.store["mappings"][nick]
+        pony_name = self.store["nicks"][to]
+        if self.debug:
+            pony_name = "{} ({})".format(pony_name, to)
+
+        self.bot.say("You will make {} really happy.".format(pony_name))
+        self.bot.say("Their message is:")
+        self._say_lines(self.store["wishes"][to])
 
     def handle_message(self, channel, nick, msg, line=None):
         self.record_messae = False
@@ -135,17 +200,25 @@ class Santa(base.BotPlugin):
         self.handle_tokens(msg, ('list',), self.list_users,
                            nick, channel, msg, line)
 
+        self.handle_tokens(msg, ('shuffle',), self.shuffle_users,
+                           nick, channel, msg, line)
+
+        self.handle_tokens(msg, ('to_whom',), self.to_whom,
+                           nick, channel, msg, line)
+
+        self.handle_tokens(msg, ('show_mappings',), self.list_users,
+                           nick, channel, msg, line)
+
         if self.record_messae:
             self.append_wish(nick, msg)
 
-    def _add_nick_mapping(self, nick):
+    def set_pony_name(self, nick):
         if nick in self.store["nicks"]:
             return
         taken_nicks = set(self.store["nicks"].values())
         possible_nicks = self.ponies.difference(taken_nicks)
-        self.store["nicks"][nick]= random.sample(possible_nicks, 1)[0]
+        self.store["nicks"][nick] = random.sample(possible_nicks, 1)[0]
 
     def append_wish(self, nick, msg):
         self.store["wishes"][nick].append(msg)
-        self._add_nick_mapping(nick)
         self._save_store()
