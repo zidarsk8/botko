@@ -242,9 +242,24 @@ class Santa(base.PsywerxPlugin):
         else:
             pony_name = self.get_pony_name(to)
 
-        self.bot.say("You will make {} really happy.".format(pony_name), nick)
-        self.bot.say("Their message is:", nick)
+        santa_message = [
+            "You should buy a gift for: {}".format(pony_name),
+            "Please make sure you:",
+            " - Don't spend more than 20 eur on the gift.",
+            " - Write '{}' on a visible place.".format(pony_name),
+            " - Make the gift as easy to open as possible.",
+            "NOTE: There will be a competition for a bonus prize. "
+            "Each year we tried to make the gift as hard to open as possible. "
+            "That will be differnt now. "
+            "Requirements to win the bonus prize are:",
+            " - Gift must not be visible without opening the pacgage.",
+            " - Package that will be the easiest to open will win.",
+            " ",
+            "{} wished for:".format(pony_name),
+        ]
+        self._say_lines(santa_message, nick)
         self._say_lines(self.store["wishes"][to], nick)
+        self.bot.say("--- end of wish ---", nick)
 
     def handle_message(self, channel, nick, msg, line=None):
         self.record_messae = False
