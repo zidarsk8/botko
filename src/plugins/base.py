@@ -65,5 +65,6 @@ class PsywerxPlugin(BotPlugin):
                 'channel': channel
             }, **extra_params))
             return urlopen(P['SERVER_URL'] + url, params).read()
-        except:
-            self.bot.log_error('Request failed: ' + url + params)
+        except Exception as e:
+            self.bot.log_error(e)
+            self.bot.log_error('Request failed: ' + P['SERVER_URL'] + url + params)
