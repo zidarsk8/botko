@@ -6,7 +6,7 @@ import time
 from collections import defaultdict
 
 
-class Santa(base.BotPlugin):
+class Santa(base.PsywerxPlugin):
 
     admins = ("smotko", "zidar")
 
@@ -103,7 +103,6 @@ class Santa(base.BotPlugin):
             "@show - Show your current wish.",
             "@delete - Delete your current wish.",
             "@list - List of secret santa users. ",
-            "@shuffle - Assign one gift to each santa. ",
             "@show_mappings - Show who would give a gift to whom. This will",
             "    be hidden when the real santa starts.",
             "@to_whom - Show the fake nick of the person you will gift,",
@@ -114,7 +113,7 @@ class Santa(base.BotPlugin):
             "@unfreeze - Unfreeze the current wishes and mappings.",
             "    Can be done only by admin users.",
         ]
-        self._say_lines(help_message, channel)
+        self._say_lines(help_message, nick)
 
     def show_wish(self, tokens, nick, channel, msg, line):
         self.record_messae = False
@@ -126,6 +125,12 @@ class Santa(base.BotPlugin):
 
     def delete_wish(self, tokens, nick, channel, msg, line):
         self.record_messae = False
+        if self.store.get("freeze", False):
+            self.bot.say("Sorry, wishes have been frozen, you can't modify"
+                         " them anymore. Use @help to see possible commands",
+                         nick)
+            return
+
         if nick in self.store["wishes"]:
             del self.store["wishes"][nick]
             self._save_store()
@@ -140,32 +145,25 @@ class Santa(base.BotPlugin):
         else:
             self.bot.say("There aren't any secret santas yet.", channel)
 
-    def shuffle_users(self, tokens, nick, channel, msg, line):
-        self.record_messae = False
-        if not self.store["wishes"]:
-            self.bot.say("Can't shuffle 0 wishes", channel)
-            return
-
+    def shuffle_users(self):
         nicks = self.store["wishes"].keys()
-
         random.shuffle(nicks)
         self.store["nicks"] = {}
         self.store["mappings"] = {}
         for i, nick in enumerate(nicks):
             self.get_pony_name(nick)
             self.store["mappings"][nick] = nicks[(i + 1) % len(nicks)]
-
         self._save_store()
-        self.bot.say("{} wishes were assigned".format(len(nicks)), channel)
 
     def show_mappings(self, tokens, nick, channel, msg, line):
         self.record_messae = False
-        if not self.debug:
-            self.bot.say("This only works in debug mode, sorry.", channel)
+        if not self.store.get("freeze", False):
+            self.bot.say("Wishes have to be frozen first.", nick)
+            self.bot.say("Ask an admin to when that happens", nick)
             return
 
-        if not self.store["mappings"]:
-            self.bot.say("Wishes have not yet been assigned.", channel)
+        if not self.debug:
+            self.bot.say("This only works in debug mode, sorry.", channel)
             return
 
         self.bot.say("These are the actual nicks that will be used", channel)
@@ -175,20 +173,24 @@ class Santa(base.BotPlugin):
             p_to = "{} ({})".format(self.get_pony_name(reciever), reciever)
             self.bot.say("from: {} - to: {}".format(p_from, p_to), channel)
             time.sleep(1)
+        self.bot.say("---- end ----", channel)
 
     def freeze(self, tokens, nick, channel, msg, line):
+        self.record_messae = False
         if nick not in self.admins:
             self.bot.say("I can't let you do that dave", channel)
             return
         if self.store.get("freeze", False):
             self.bot.say("Already frozen, nothing to do here.", channel)
         else:
+            self.shuffle_users()
             self.store["freeze"] = True
             self._save_store(force=True)
             self.bot.say("The hell has frozen.", channel)
 
 
     def unfreeze(self, tokens, nick, channel, msg, line):
+        self.record_messae = False
         if nick not in self.admins:
             self.bot.say("I can't let you do that dave", channel)
             return
@@ -201,8 +203,9 @@ class Santa(base.BotPlugin):
 
     def to_whom(self, tokens, nick, channel, msg, line):
         self.record_messae = False
-        if not self.store["mappings"]:
-            self.bot.say("Wishes have not yet been assigned.", nick)
+        if not self.store.get("freeze", False):
+            self.bot.say("Wishes have to be frozen first.", nick)
+            self.bot.say("Ask an admin to when that happens", nick)
             return
 
         if nick not in self.store["mappings"]:
@@ -225,32 +228,20 @@ class Santa(base.BotPlugin):
             channel = nick
             self.record_messae = True
 
-        self.handle_tokens(msg, ('help',), self.say_help,
-                           nick, channel, msg, line)
+        token_handlers = {
+            'help': self.say_help,
+            'show': self.show_wish,
+            'delete': self.delete_wish,
+            'list': self.list_users,
+            'freeze': self.freeze,
+            'unfreeze': self.unfreeze,
+            'to_whom': self.to_whom,
+            'show_mappings': self.show_mappings,
+        }
+        args = (nick, channel, msg, line)
 
-        self.handle_tokens(msg, ('show',), self.show_wish,
-                           nick, channel, msg, line)
-
-        self.handle_tokens(msg, ('delete',), self.delete_wish,
-                           nick, channel, msg, line)
-
-        self.handle_tokens(msg, ('list',), self.list_users,
-                           nick, channel, msg, line)
-
-        self.handle_tokens(msg, ('shuffle',), self.shuffle_users,
-                           nick, channel, msg, line)
-
-        self.handle_tokens(msg, ('freeze',), self.freeze,
-                           nick, channel, msg, line)
-
-        self.handle_tokens(msg, ('unfreeze',), self.unfreeze,
-                           nick, channel, msg, line)
-
-        self.handle_tokens(msg, ('to_whom',), self.to_whom,
-                           nick, channel, msg, line)
-
-        self.handle_tokens(msg, ('show_mappings',), self.show_mappings,
-                           nick, channel, msg, line)
+        for token, handler in token_handlers.items():
+            self.handle_tokens(msg, (token,), handler, *args)
 
         if self.record_messae and "PRIVMSG" in line:
             self.append_wish(nick, msg)
@@ -269,6 +260,35 @@ class Santa(base.BotPlugin):
             self._save_store()
         return self.store["nicks"][nick]
 
+    def _get_user_karma(self, nick):
+        def parse_int(x):
+            try:
+                return int(x)
+            except:
+                return 0
+        params = {'nick': nick}
+        channel = "#psywerx"
+        response = self.request(channel, 'irc/karma_nick', params)
+        if not response:
+            return 0
+        karma = max(parse_int(word) for word in response.split())
+        return karma
+
     def append_wish(self, nick, msg):
-        self.store["wishes"][nick].append(msg)
-        self._save_store()
+        karma = self._get_user_karma(nick)
+        if karma < 1:
+            self.bot.say("Sorry, but you need at least 1 karma point on"
+                         "#psywerx to participate in this secret santa.",
+                         nick)
+            return
+
+        if self.store.get("freeze", False):
+            self.bot.say("Sorry, wishes have been frozen, you can't modify"
+                         " them anymore. Use @help to see possible commands",
+                         nick)
+        else:
+            self.store["wishes"][nick].append(msg)
+            self._save_store()
+            self.bot.say("A line has been added to your wish. "
+                        "type @show to display your current wish or @delete "
+                        "to delete it.", nick)
