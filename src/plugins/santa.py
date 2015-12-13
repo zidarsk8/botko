@@ -8,6 +8,8 @@ from collections import defaultdict
 
 class Santa(base.PsywerxPlugin):
 
+    password = "please"
+
     admins = ("smotko", "zidar")
 
     ponies = set([
@@ -154,6 +156,23 @@ class Santa(base.PsywerxPlugin):
             self.store["mappings"][nick] = nicks[(i + 1) % len(nicks)]
         self._save_store()
 
+    def show_pony_names(self, tokens, nick, channel, msg, line):
+        if not self.store.get("freeze", False):
+            self.bot.say("Wishes have to be frozen first.", nick)
+            self.bot.say("Ask an admin to when that happens", nick)
+            return
+
+        if not self.debug and self.password not in msg:
+            self.bot.say("This only works in debug mode, sorry.", channel)
+            return
+
+        self.bot.say("Here are your pony names", channel)
+        for name in sorted(self.store["wishes"].keys()):
+            self.bot.say("{} <--> {}".format(name, self.get_pony_name(name)),
+                         channel)
+            time.sleep(1)
+        self.bot.say("---- end ----", channel)
+
     def show_mappings(self, tokens, nick, channel, msg, line):
         self.record_messae = False
         if not self.store.get("freeze", False):
@@ -161,7 +180,7 @@ class Santa(base.PsywerxPlugin):
             self.bot.say("Ask an admin to when that happens", nick)
             return
 
-        if not self.debug:
+        if not self.debug and self.password not in msg:
             self.bot.say("This only works in debug mode, sorry.", channel)
             return
 
@@ -237,6 +256,7 @@ class Santa(base.PsywerxPlugin):
             'unfreeze': self.unfreeze,
             'to_whom': self.to_whom,
             'show_mappings': self.show_mappings,
+            'show_pony_names': self.show_pony_names,
         }
         args = (nick, channel, msg, line)
 
