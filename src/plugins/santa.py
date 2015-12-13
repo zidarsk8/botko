@@ -8,11 +8,11 @@ from collections import defaultdict
 
 class Santa(base.PsywerxPlugin):
 
-    password = "please"
+    PASSWORD = "please"
 
-    admins = ("smotko", "zidar")
+    ADMINS = ("smotko", "zidar")
 
-    ponies = set([
+    PONIES = set([
         "Rainbow Dash",
         "Pinkie Pie",
         "Misty Fly",
@@ -162,7 +162,7 @@ class Santa(base.PsywerxPlugin):
             self.bot.say("Ask an admin to when that happens", nick)
             return
 
-        if not self.debug and self.password not in msg:
+        if not self.debug and self.PASSWORD not in msg:
             self.bot.say("This only works in debug mode, sorry.", channel)
             return
 
@@ -180,7 +180,7 @@ class Santa(base.PsywerxPlugin):
             self.bot.say("Ask an admin to when that happens", nick)
             return
 
-        if not self.debug and self.password not in msg:
+        if not self.debug and self.PASSWORD not in msg:
             self.bot.say("This only works in debug mode, sorry.", channel)
             return
 
@@ -195,7 +195,7 @@ class Santa(base.PsywerxPlugin):
 
     def freeze(self, tokens, nick, channel, msg, line):
         self.record_messae = False
-        if nick not in self.admins:
+        if nick not in self.ADMINS:
             self.bot.say("I can't let you do that dave", channel)
             return
         if self.store.get("freeze", False):
@@ -208,7 +208,7 @@ class Santa(base.PsywerxPlugin):
 
     def unfreeze(self, tokens, nick, channel, msg, line):
         self.record_messae = False
-        if nick not in self.admins:
+        if nick not in self.ADMINS:
             self.bot.say("I can't let you do that dave", channel)
             return
         if self.store.get("freeze", False):
@@ -275,7 +275,7 @@ class Santa(base.PsywerxPlugin):
     def get_pony_name(self, nick):
         if nick not in self.store["nicks"]:
             taken_nicks = set(self.store["nicks"].values())
-            possible_nicks = self.ponies.difference(taken_nicks)
+            possible_nicks = self.PONIES.difference(taken_nicks)
             self.store["nicks"][nick] = random.sample(possible_nicks, 1)[0]
             self._save_store()
         return self.store["nicks"][nick]
