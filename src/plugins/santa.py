@@ -157,6 +157,7 @@ class Santa(base.PsywerxPlugin):
         self._save_store()
 
     def show_pony_names(self, tokens, nick, channel, msg, line):
+        self.record_messae = False
         if not self.store.get("freeze", False):
             self.bot.say("Wishes have to be frozen first.", nick)
             self.bot.say("Ask an admin to when that happens", nick)
@@ -187,9 +188,13 @@ class Santa(base.PsywerxPlugin):
         self.bot.say("These are the actual nicks that will be used", channel)
         self.bot.say("The follwing gifts will be given (fake nicks):", channel)
         for giver, reciever in sorted(self.store["mappings"].items()):
-            p_from = "{} ({})".format(self.get_pony_name(giver), giver)
-            p_to = "{} ({})".format(self.get_pony_name(reciever), reciever)
-            self.bot.say("from: {} - to: {}".format(p_from, p_to), channel)
+            if self.debug:
+                p_from = "{} ({})".format(self.get_pony_name(giver), giver)
+                p_to = "{} ({})".format(self.get_pony_name(reciever), reciever)
+            else:
+                p_from = self.get_pony_name(giver)
+                p_to = self.get_pony_name(reciever)
+            self.bot.say("{} ---> {}".format(p_from, p_to), channel)
             time.sleep(1)
         self.bot.say("---- end ----", channel)
 
