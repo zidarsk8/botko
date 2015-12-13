@@ -59,7 +59,7 @@ class Santa(base.PsywerxPlugin):
 
     def __init__(self, bot):
         super(Santa, self).__init__(bot)
-        self.debug = True
+        self.debug = False
         self.pickle_file = "secret_santa_stash.pkl"
         self.store = self._load_object()
         if self.store is None:
@@ -73,7 +73,6 @@ class Santa(base.PsywerxPlugin):
     def _save_store(self, force=False):
         if not self.store.get("freeze", False) or force:
             self._save_object(self.store)
-
 
     def _save_object(self, obj):
         with open(self.pickle_file, "w") as output:
@@ -188,7 +187,6 @@ class Santa(base.PsywerxPlugin):
             self._save_store(force=True)
             self.bot.say("The hell has frozen.", channel)
 
-
     def unfreeze(self, tokens, nick, channel, msg, line):
         self.record_messae = False
         if nick not in self.admins:
@@ -217,6 +215,8 @@ class Santa(base.PsywerxPlugin):
         to = self.store["mappings"][nick]
         if self.debug:
             pony_name = "{} ({})".format(self.get_pony_name(to), to)
+        else:
+            pony_name = self.get_pony_name(to)
 
         self.bot.say("You will make {} really happy.".format(pony_name), nick)
         self.bot.say("Their message is:", nick)
@@ -247,10 +247,10 @@ class Santa(base.PsywerxPlugin):
             self.append_wish(nick, msg)
 
         if self.debug and "debug" in msg:
-            print "#"*80
+            print "#" * 80
             import json
             print json.dumps(self.store, indent=4, sort_keys=True)
-            print "#"*80
+            print "#" * 80
 
     def get_pony_name(self, nick):
         if nick not in self.store["nicks"]:
@@ -290,5 +290,5 @@ class Santa(base.PsywerxPlugin):
             self.store["wishes"][nick].append(msg)
             self._save_store()
             self.bot.say("A line has been added to your wish. "
-                        "type @show to display your current wish or @delete "
-                        "to delete it.", nick)
+                         "type @show to display your current wish or @delete "
+                         "to delete it.", nick)
