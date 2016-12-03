@@ -329,6 +329,7 @@ class Santa(base.PsywerxPlugin):
         else:
             self.store["wishes"][nick].append(msg)
             self._save_store()
-            self.bot.say("A line has been added to your wish. "
+            self.bot.say("A line has been added to your wish."
                          "type @show to display your current wish or @delete "
-                         "to delete it.", nick)
+                         "to delete it. Your wish should not exceed 20 euros.",
+                         nick)
