@@ -94,8 +94,8 @@ class Santa(base.PsywerxPlugin):
     def say_help(self, tokens, nick, channel, msg, line):
         self.record_messae = False
         help_message = [
-            "This your personal secret santa",
-            "To register for the third anal secret santa, you just have to",
+            "This your personal secret santa (on 21. 12. 2019)",
+            "To register for the fourth anal sekret santa, you just have to",
             "tell me your wish in a PM. If you delete your wish with you will",
             "be removed from the secret santa cirle.",
             "-----------------",
